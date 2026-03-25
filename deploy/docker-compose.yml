@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_DB: ${DB_NAME:-accounting}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # С хоста: localhost:${DB_PUBLISH_PORT}; внутри compose бот ходит на db:5432 (DB_PORT в .env не менять).
+    ports:
+      - "${DB_PUBLISH_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
+    env_file:
+      - ../.env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python -u deploy/wait_for_db.py && echo '[bot] running alembic...' && alembic upgrade head && echo '[bot] starting application...' && python -u -m src.main"
+
+volumes:
+  pgdata:
