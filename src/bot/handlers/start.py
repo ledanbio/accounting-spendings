@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.user_service import UserService
 from src.bot.keyboards.inline import settings_currency_keyboard
+from src.bot.keyboards.reply import main_menu_keyboard
 
 router = Router()
 
@@ -21,7 +22,8 @@ async def cmd_start(message: Message, session: AsyncSession) -> None:
         f"Привет, <b>{user.first_name}</b>!\n\n"
         "Я помогу вести учёт расходов и доходов.\n"
         f"Валюта по умолчанию: <b>{user.default_currency}</b>\n\n"
-        "Используй /help чтобы увидеть список команд."
+        "Используй кнопки меню или /help для списка команд.",
+        reply_markup=main_menu_keyboard(),
     )
 
 
