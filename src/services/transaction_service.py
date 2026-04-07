@@ -1,7 +1,7 @@
 import datetime
 from decimal import Decimal
 
-from sqlalchemy import select, func, update
+from sqlalchemy import select, func, update, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -61,6 +61,62 @@ class TransactionService:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_available_months(self, user_id: int, limit: int = 24) -> list[str]:
+        """Return months with transactions as 'YYYY-MM' (newest first)."""
+        month_str = func.to_char(Transaction.transaction_date, "YYYY-MM")
+        stmt = (
+            select(distinct(month_str))
+            .where(Transaction.user_id == user_id)
+            .order_by(distinct(month_str).desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return [row[0] for row in result.all() if row[0]]
+
+    async def get_month_history(
+        self,
+        user_id: int,
+        month: str,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> list[Transaction]:
+        """History for a month. month format: 'YYYY-MM'."""
+        start = datetime.date.fromisoformat(f"{month}-01")
+        if start.month == 12:
+            end = datetime.date(start.year + 1, 1, 1)
+        else:
+            end = datetime.date(start.year, start.month + 1, 1)
+
+        stmt = (
+            select(Transaction)
+            .options(joinedload(Transaction.category), joinedload(Transaction.wallet))
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.transaction_date >= start,
+                Transaction.transaction_date < end,
+            )
+            .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_month(self, user_id: int, month: str) -> int:
+        start = datetime.date.fromisoformat(f"{month}-01")
+        if start.month == 12:
+            end = datetime.date(start.year + 1, 1, 1)
+        else:
+            end = datetime.date(start.year, start.month + 1, 1)
+
+        stmt = select(func.count(Transaction.id)).where(
+            Transaction.user_id == user_id,
+            Transaction.transaction_date >= start,
+            Transaction.transaction_date < end,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def get_history_by_wallet(
         self, wallet_id: int, limit: int = 10, offset: int = 0

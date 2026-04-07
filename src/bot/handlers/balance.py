@@ -1,11 +1,13 @@
+from decimal import Decimal
+
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.user_service import UserService
-from src.services.transaction_service import TransactionService
 from src.services.wallet_service import WalletService
+from src.services.exchange_rate_service import ExchangeRateService
 
 router = Router()
 
@@ -27,18 +29,33 @@ async def cmd_balance(message: Message, session: AsyncSession) -> None:
 
     lines = ["<b>💼 Ваш баланс по кошелькам:</b>\n"]
 
-    total_balance = 0
+    fx = ExchangeRateService(session)
+    try:
+        await fx.ensure_today_rates()
+    except Exception:
+        # If rate refresh fails, we'll still show per-wallet balances.
+        pass
+
+    total_in_default = Decimal("0")
+    skipped_currencies: set[str] = set()
 
     for wallet in wallets:
-        total_balance += wallet.balance
         emoji = wallet.emoji or "💼"
         sign = "+" if wallet.balance >= 0 else ""
         lines.append(
             f"  {emoji} <b>{wallet.name}</b> ({wallet.currency}): {sign}{wallet.balance}"
         )
+        try:
+            converted, _ = await fx.convert(wallet.balance, wallet.currency, user.default_currency)
+            total_in_default += converted
+        except Exception:
+            skipped_currencies.add(wallet.currency)
 
     lines.append("\n" + "─" * 30)
-    sign = "+" if total_balance >= 0 else ""
-    lines.append(f"  <b>Итого:</b> {sign}{total_balance}")
+    sign = "+" if total_in_default >= 0 else ""
+    lines.append(f"  <b>Итого:</b> {sign}{total_in_default} {user.default_currency}")
+    if skipped_currencies:
+        skipped = ", ".join(sorted(skipped_currencies))
+        lines.append(f"\n<i>Не удалось конвертировать валюты: {skipped}</i>")
 
     await message.answer("\n".join(lines))

@@ -1,4 +1,4 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -14,6 +14,7 @@ from src.bot.keyboards.inline import (
     wallets_keyboard,
 )
 from src.bot.states.transaction import AddTransaction
+from src.bot.utils.money import parse_money_amount
 from src.services.user_service import UserService
 from src.services.category_service import CategoryService
 from src.services.transaction_service import TransactionService
@@ -106,12 +107,9 @@ async def on_category_chosen(callback: CallbackQuery, state: FSMContext) -> None
 
 @router.message(AddTransaction.entering_amount)
 async def on_amount_entered(message: Message, state: FSMContext) -> None:
-    try:
-        amount = Decimal(message.text.replace(",", "."))
-        if amount <= 0:
-            raise ValueError
-    except (InvalidOperation, ValueError):
-        await message.answer("Введите корректную положительную сумму:")
+    amount, err = parse_money_amount(message.text)
+    if err:
+        await message.answer(err)
         return
 
     await state.update_data(amount=str(amount))

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.services.user_service import UserService
 from src.services.wallet_service import WalletService
 from src.bot.states.wallet import AddWallet
+from src.bot.keyboards.reply import main_menu_keyboard
 
 router = Router()
 
@@ -143,6 +144,12 @@ async def _save_wallet(callback: CallbackQuery, state: FSMContext, session: Asyn
         f"✅ Кошелек создан!\n\n"
         f"{emoji} <b>{wallet.name}</b>\n"
         f"Валюта: {wallet.currency}"
+    )
+    # Reply keyboard (menu) can't be reliably restored via edit_text after inline flows,
+    # so we send a separate message to ensure the main menu buttons stay visible.
+    await callback.message.answer(
+        "Используй кнопки меню или /help для списка команд.",
+        reply_markup=main_menu_keyboard(),
     )
     await state.clear()
     await callback.answer()

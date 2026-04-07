@@ -123,6 +123,41 @@ def wallet_stats_filter_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def transfer_source_keyboard(wallets: list[Wallet]) -> InlineKeyboardMarkup:
+    """Keyboard for picking the source wallet in a transfer."""
+    builder = InlineKeyboardBuilder()
+    for wallet in wallets:
+        emoji = wallet.emoji or "💼"
+        text = f"{emoji} {wallet.name} ({wallet.currency})"
+        builder.button(text=text, callback_data=f"tr_from:{wallet.id}")
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel"))
+    return builder.as_markup()
+
+
+def transfer_dest_keyboard(wallets: list[Wallet], exclude_id: int) -> InlineKeyboardMarkup:
+    """Keyboard for picking the destination wallet in a transfer."""
+    builder = InlineKeyboardBuilder()
+    for wallet in wallets:
+        if wallet.id == exclude_id:
+            continue
+        emoji = wallet.emoji or "💼"
+        text = f"{emoji} {wallet.name} ({wallet.currency})"
+        builder.button(text=text, callback_data=f"tr_to:{wallet.id}")
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel"))
+    return builder.as_markup()
+
+
+def confirm_transfer_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="✅ Подтвердить", callback_data="tr_confirm"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="cancel"),
+    )
+    return builder.as_markup()
+
+
 def settings_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="💱 Изменить валюту", callback_data="settings_currency"))

@@ -10,12 +10,14 @@ from src.bot.keyboards.reply import (
     BTN_HELP,
     BTN_HISTORY,
     BTN_SETTINGS,
+    BTN_TRANSFER,
 )
 from src.bot.handlers.start import cmd_help, cmd_settings
 from src.bot.handlers.transaction import cmd_add
 from src.bot.handlers.balance import cmd_balance
 from src.bot.handlers.history import cmd_history
 from src.bot.handlers.category import cmd_categories
+from src.bot.handlers.transfer import cmd_transfer
 
 router = Router()
 
@@ -48,3 +50,8 @@ async def on_btn_settings(message: Message) -> None:
 @router.message(F.text == BTN_HELP)
 async def on_btn_help(message: Message) -> None:
     await cmd_help(message)
+
+
+@router.message(F.text == BTN_TRANSFER)
+async def on_btn_transfer(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    await cmd_transfer(message, state, session)
