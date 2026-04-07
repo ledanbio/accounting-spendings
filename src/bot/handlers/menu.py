@@ -21,8 +21,8 @@ router = Router()
 
 
 @router.message(F.text == BTN_ADD)
-async def on_btn_add(message: Message, state: FSMContext) -> None:
-    await cmd_add(message, state)
+async def on_btn_add(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    await cmd_add(message, state, session)
 
 
 @router.message(F.text == BTN_BALANCE)
