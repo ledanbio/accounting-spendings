@@ -11,11 +11,11 @@ from src.bot.handlers.menu import router as menu_router
 
 def register_routers(dp: Dispatcher) -> None:
     dp.include_routers(
-        start_router,
         transaction_router,
         category_router,
         balance_router,
         history_router,
         wallet_router,
+        start_router,
         menu_router,
     )
