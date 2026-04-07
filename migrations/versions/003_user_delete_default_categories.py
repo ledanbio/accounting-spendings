@@ -37,35 +37,33 @@ def upgrade() -> None:
     # 2.1 Prefer wallet with same currency
     op.execute(
         """
-        UPDATE transactions t
-        SET wallet_id = w.id
-        FROM LATERAL (
-            SELECT id
+        UPDATE transactions
+        SET wallet_id = (
+            SELECT w.id
             FROM wallets w
-            WHERE w.user_id = t.user_id
-              AND w.currency = t.currency
+            WHERE w.user_id = transactions.user_id
+              AND w.currency = transactions.currency
               AND w.is_archived = false
             ORDER BY w.created_at ASC, w.id ASC
             LIMIT 1
-        ) w
-        WHERE t.wallet_id IS NULL
+        )
+        WHERE transactions.wallet_id IS NULL
         """
     )
 
     # 2.2 Fallback: any wallet of the user
     op.execute(
         """
-        UPDATE transactions t
-        SET wallet_id = w.id
-        FROM LATERAL (
-            SELECT id
+        UPDATE transactions
+        SET wallet_id = (
+            SELECT w.id
             FROM wallets w
-            WHERE w.user_id = t.user_id
+            WHERE w.user_id = transactions.user_id
               AND w.is_archived = false
             ORDER BY w.created_at ASC, w.id ASC
             LIMIT 1
-        ) w
-        WHERE t.wallet_id IS NULL
+        )
+        WHERE transactions.wallet_id IS NULL
         """
     )
 
