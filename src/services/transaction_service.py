@@ -1,7 +1,7 @@
 import datetime
 from decimal import Decimal
 
-from sqlalchemy import select, func, update, distinct
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -66,9 +66,10 @@ class TransactionService:
         """Return months with transactions as 'YYYY-MM' (newest first)."""
         month_str = func.to_char(Transaction.transaction_date, "YYYY-MM")
         stmt = (
-            select(distinct(month_str))
+            select(month_str)
             .where(Transaction.user_id == user_id)
-            .order_by(distinct(month_str).desc())
+            .distinct()
+            .order_by(month_str.desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
