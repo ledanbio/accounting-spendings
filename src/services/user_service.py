@@ -43,3 +43,12 @@ class UserService:
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+    async def toggle_emoji(self, user_id: int) -> User:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one()
+        user.emoji_enabled = not user.emoji_enabled
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

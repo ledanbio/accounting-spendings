@@ -83,6 +83,63 @@ async def on_settings_currency(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "settings_emoji")
+async def on_settings_emoji(callback: CallbackQuery, session: AsyncSession) -> None:
+    user_svc = UserService(session)
+    user = await user_svc.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.message.edit_text("Сначала введите /start")
+        await callback.answer()
+        return
+
+    status = "✅ Включены" if user.emoji_enabled else "❌ Отключены"
+    next_action = "Отключить" if user.emoji_enabled else "Включить"
+
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(
+        text=f"{next_action} смайлики",
+        callback_data="emoji_toggle"
+    ))
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="settings_back"))
+
+    await callback.message.edit_text(
+        f"😊 <b>Управление смайликами</b>\n\n"
+        f"Смайлики помогают визуально различать категории, кошельки и типы операций.\n\n"
+        f"Статус: {status}",
+        reply_markup=builder.as_markup(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "emoji_toggle")
+async def on_emoji_toggle(callback: CallbackQuery, session: AsyncSession) -> None:
+    user_svc = UserService(session)
+    user = await user_svc.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.message.edit_text("Сначала введите /start")
+        await callback.answer()
+        return
+
+    user = await user_svc.toggle_emoji(user.id)
+    status = "✅ Включены" if user.emoji_enabled else "❌ Отключены"
+    next_action = "Отключить" if user.emoji_enabled else "Включить"
+
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(
+        text=f"{next_action} смайлики",
+        callback_data="emoji_toggle"
+    ))
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="settings_back"))
+
+    await callback.message.edit_text(
+        f"😊 <b>Управление смайликами</b>\n\n"
+        f"Смайлики помогают визуально различать категории, кошельки и типы операций.\n\n"
+        f"Статус: {status}",
+        reply_markup=builder.as_markup(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "settings_wallets")
 async def on_settings_wallets(callback: CallbackQuery, session: AsyncSession) -> None:
     from src.services.wallet_service import WalletService
@@ -172,12 +229,13 @@ async def on_set_currency(callback: CallbackQuery, session: AsyncSession) -> Non
 
 
 @router.callback_query(F.data == "onboard_wallet")
-async def on_onboard_wallet(callback: CallbackQuery) -> None:
-    """Redirect to wallet creation command."""
+async def on_onboard_wallet(callback: CallbackQuery, state: FSMContext) -> None:
+    """Start wallet creation during onboarding."""
+    from src.bot.states.wallet import AddWallet
+    
+    await state.set_state(AddWallet.entering_name)
     await callback.message.edit_text(
-        "Перенаправляю на создание кошелька...\n\n"
-        "Используйте команду /wallets для создания кошелька.",
-        reply_markup=main_menu_keyboard(),
+        "Введите название кошелька (например, 'Основная карта', 'Наличные'):"
     )
     await callback.answer()
 
