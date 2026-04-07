@@ -60,7 +60,8 @@ async def on_wallet_add(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.message(AddWallet.entering_name)
-async def on_wallet_name_entered(message: Message, state: FSMContext) -> None:
+async def on_wallet_name_from_callback(message: Message, state: FSMContext) -> None:
+    """Handle wallet name input from callback."""
     wallet_name = message.text.strip()
     if not wallet_name or len(wallet_name) > 128:
         await message.answer("Введите название от 1 до 128 символов:")

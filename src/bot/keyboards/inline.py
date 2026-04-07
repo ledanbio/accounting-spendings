@@ -121,3 +121,11 @@ def wallet_stats_filter_keyboard() -> InlineKeyboardMarkup:
     )
     builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="wallet_back"))
     return builder.as_markup()
+
+
+def settings_menu_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="💱 Изменить валюту", callback_data="settings_currency"))
+    builder.row(InlineKeyboardButton(text="💼 Управление кошельками", callback_data="settings_wallets"))
+    builder.row(InlineKeyboardButton(text="Назад", callback_data="cancel"))
+    return builder.as_markup()
