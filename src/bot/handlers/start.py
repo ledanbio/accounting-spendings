@@ -59,17 +59,103 @@ async def cmd_help(message: Message) -> None:
         "/balance — текущий баланс\n"
         "/history — история транзакций\n"
         "/categories — управление категориями\n"
-        "/settings — настройки (валюта)\n"
+        "/wallets — управление кошельками\n"
+        "/settings — настройки\n"
         "/help — эта справка"
     )
 
 
 @router.message(Command("settings"))
 async def cmd_settings(message: Message) -> None:
+    from src.bot.keyboards.inline import settings_menu_keyboard
     await message.answer(
+        "⚙️ <b>Настройки</b>",
+        reply_markup=settings_menu_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "settings_currency")
+async def on_settings_currency(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
         "Выберите валюту по умолчанию:",
         reply_markup=settings_currency_keyboard(),
     )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "settings_wallets")
+async def on_settings_wallets(callback: CallbackQuery, session: AsyncSession) -> None:
+    from src.services.wallet_service import WalletService
+    
+    user_svc = UserService(session)
+    user = await user_svc.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.message.edit_text("Сначала введите /start")
+        await callback.answer()
+        return
+
+    wallet_svc = WalletService(session)
+    wallets = await wallet_svc.get_wallets(user.id)
+
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="wallet_add"))
+    
+    if wallets:
+        builder.row(InlineKeyboardButton(text="📋 Просмотр кошельков", callback_data="wallet_list"))
+    
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="settings_back"))
+
+    text = "💼 <b>Управление кошельками</b>\n\n"
+    if wallets:
+        text += f"У вас {len(wallets)} кошелек(ов).\n\n"
+    else:
+        text += "У вас нет кошельков.\n\n"
+    
+    text += "Что вы хотите сделать?"
+
+    await callback.message.edit_text(text, reply_markup=builder.as_markup())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "wallet_list")
+async def on_wallet_list(callback: CallbackQuery, session: AsyncSession) -> None:
+    from src.services.wallet_service import WalletService
+    
+    user_svc = UserService(session)
+    user = await user_svc.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.message.edit_text("Сначала введите /start")
+        await callback.answer()
+        return
+
+    wallet_svc = WalletService(session)
+    wallets = await wallet_svc.get_wallets(user.id)
+
+    if not wallets:
+        await callback.message.edit_text("У вас нет кошельков.")
+        await callback.answer()
+        return
+
+    lines = ["<b>💼 Ваши кошельки:</b>\n"]
+    for i, wallet in enumerate(wallets, 1):
+        emoji = wallet.emoji or "💼"
+        lines.append(f"{i}. {emoji} <b>{wallet.name}</b> ({wallet.currency})")
+
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="settings_wallets"))
+
+    await callback.message.edit_text("\n".join(lines), reply_markup=builder.as_markup())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "settings_back")
+async def on_settings_back(callback: CallbackQuery) -> None:
+    from src.bot.keyboards.inline import settings_menu_keyboard
+    await callback.message.edit_text(
+        "⚙️ <b>Настройки</b>",
+        reply_markup=settings_menu_keyboard(),
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("setcur:"))
@@ -86,24 +172,11 @@ async def on_set_currency(callback: CallbackQuery, session: AsyncSession) -> Non
 
 
 @router.callback_query(F.data == "onboard_wallet")
-async def on_onboard_wallet(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Start wallet creation during onboarding."""
-    from src.bot.states.wallet import AddWallet
-    from aiogram.fsm.context import FSMContext
-
-    # Get the state object from the context
-    state = callback.bot.get('_state_storage')
-
-    await callback.message.edit_text("Введите название кошелька (например, 'Основная карта'):")
-
-    # Import FSM context and set state
-    from aiogram.fsm.context import FSMContext
-
-    # We'll use a workaround for now - just direct to wallet command
-    await callback.message.answer(
-        "Используйте команду /wallets для создания кошелька.\n"
-        "Или просто добавьте первую транзакцию командой /add, "
-        "система попросит создать кошелек автоматически.",
+async def on_onboard_wallet(callback: CallbackQuery) -> None:
+    """Redirect to wallet creation command."""
+    await callback.message.edit_text(
+        "Перенаправляю на создание кошелька...\n\n"
+        "Используйте команду /wallets для создания кошелька.",
         reply_markup=main_menu_keyboard(),
     )
     await callback.answer()
