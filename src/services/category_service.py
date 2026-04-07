@@ -20,8 +20,8 @@ class CategoryService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, name: str, type_: str, user_id: int) -> Category:
-        category = Category(name=name, type=type_, user_id=user_id, is_default=False)
+    async def create(self, name: str, type_: str, user_id: int, emoji: str | None = None) -> Category:
+        category = Category(name=name, type=type_, user_id=user_id, is_default=False, emoji=emoji)
         self.session.add(category)
         await self.session.commit()
         await self.session.refresh(category)

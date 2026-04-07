@@ -2,8 +2,9 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.database.models.category import Category
+from src.database.models.wallet import Wallet
 
-CURRENCIES = ["RUB", "USD", "EUR", "KZT", "GBP", "CNY"]
+CURRENCIES = ["RUB", "USD", "EUR", "KZT", "BYN", "CNY"]
 
 
 def transaction_type_keyboard() -> InlineKeyboardMarkup:
@@ -16,11 +17,13 @@ def transaction_type_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def categories_keyboard(categories: list[Category]) -> InlineKeyboardMarkup:
+def categories_keyboard(categories: list[Category], show_emojis: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for cat in categories:
         prefix = "📌 " if cat.is_default else ""
-        builder.button(text=f"{prefix}{cat.name}", callback_data=f"cat:{cat.id}")
+        emoji = cat.emoji if show_emojis and cat.emoji else ""
+        text = f"{prefix}{emoji} {cat.name}".strip()
+        builder.button(text=text, callback_data=f"cat:{cat.id}")
     builder.adjust(2)
     builder.row(InlineKeyboardButton(text="Отмена", callback_data="cancel"))
     return builder.as_markup()
@@ -96,4 +99,25 @@ def deletable_categories_keyboard(categories: list[Category]) -> InlineKeyboardM
         builder.button(text=f"❌ {cat.name} ({cat.type})", callback_data=f"catdel:{cat.id}")
     builder.adjust(1)
     builder.row(InlineKeyboardButton(text="Отмена", callback_data="cancel"))
+    return builder.as_markup()
+
+
+def wallets_keyboard(wallets: list[Wallet]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for wallet in wallets:
+        emoji = wallet.emoji or "💼"
+        text = f"{emoji} {wallet.name} ({wallet.currency})"
+        builder.button(text=text, callback_data=f"wallet:{wallet.id}")
+    builder.adjust(1)
+    builder.row(InlineKeyboardButton(text="Отмена", callback_data="cancel"))
+    return builder.as_markup()
+
+
+def wallet_stats_filter_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="📈 Доход", callback_data="wallet_filter:income"),
+        InlineKeyboardButton(text="📉 Расход", callback_data="wallet_filter:expense"),
+    )
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="wallet_back"))
     return builder.as_markup()

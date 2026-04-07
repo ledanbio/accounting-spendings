@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import BigInteger, String, func
+from sqlalchemy import BigInteger, String, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.base import Base
@@ -14,7 +14,9 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(64))
     first_name: Mapped[str] = mapped_column(String(128))
     default_currency: Mapped[str] = mapped_column(String(3), default="RUB")
+    emoji_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
 
     categories: Mapped[list["Category"]] = relationship(back_populates="user")
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")
+    wallets: Mapped[list["Wallet"]] = relationship(back_populates="user")

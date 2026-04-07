@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.user_service import UserService
 from src.services.transaction_service import TransactionService
+from src.services.wallet_service import WalletService
 
 router = Router()
 
@@ -17,16 +18,28 @@ async def cmd_balance(message: Message, session: AsyncSession) -> None:
         await message.answer("Сначала введите /start")
         return
 
-    txn_svc = TransactionService(session)
-    balances = await txn_svc.get_balance(user.id)
+    wallet_svc = WalletService(session)
+    wallets = await wallet_svc.get_wallets(user.id)
 
-    if not balances:
-        await message.answer("У вас пока нет транзакций.")
+    if not wallets:
+        await message.answer("У вас нет кошельков.")
         return
 
-    lines = ["<b>Ваш баланс:</b>\n"]
-    for currency, amount in sorted(balances.items()):
-        sign = "+" if amount >= 0 else ""
-        lines.append(f"  {currency}: <b>{sign}{amount}</b>")
+    txn_svc = TransactionService(session)
+
+    lines = ["<b>💼 Ваш баланс по кошелькам:</b>\n"]
+
+    total_balance = 0
+
+    for wallet in wallets:
+        balance = await txn_svc.get_balance_by_wallet(wallet.id)
+        total_balance += balance
+        emoji = wallet.emoji or "💼"
+        sign = "+" if balance >= 0 else ""
+        lines.append(f"  {emoji} <b>{wallet.name}</b> ({wallet.currency}): {sign}{balance}")
+
+    lines.append("\n" + "─" * 30)
+    sign = "+" if total_balance >= 0 else ""
+    lines.append(f"  <b>Итого:</b> {sign}{total_balance}")
 
     await message.answer("\n".join(lines))

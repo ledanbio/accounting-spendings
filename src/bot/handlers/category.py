@@ -33,12 +33,14 @@ async def cmd_categories(message: Message, session: AsyncSession) -> None:
     lines = ["<b>Категории расходов:</b>"]
     for c in expense_cats:
         prefix = "📌" if c.is_default else "👤"
-        lines.append(f"  {prefix} {c.name}")
+        emoji = f"{c.emoji} " if c.emoji else ""
+        lines.append(f"  {prefix} {emoji}{c.name}")
 
     lines.append("\n<b>Категории доходов:</b>")
     for c in income_cats:
         prefix = "📌" if c.is_default else "👤"
-        lines.append(f"  {prefix} {c.name}")
+        emoji = f"{c.emoji} " if c.emoji else ""
+        lines.append(f"  {prefix} {emoji}{c.name}")
 
     lines.append("\n📌 — предустановленная, 👤 — пользовательская")
 
@@ -69,27 +71,70 @@ async def on_category_type_chosen(callback: CallbackQuery, state: FSMContext) ->
 
 @router.message(AddCategory.entering_name)
 async def on_category_name_entered(
-    message: Message, state: FSMContext, session: AsyncSession
+    message: Message, state: FSMContext
 ) -> None:
     name = message.text.strip()
     if not name or len(name) > 64:
         await message.answer("Название должно быть от 1 до 64 символов. Попробуйте ещё раз:")
         return
 
+    await state.update_data(cat_name=name)
+
+    from aiogram.types import InlineKeyboardButton
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+    builder = InlineKeyboardBuilder()
+    emojis = ["🍕", "🚗", "🏠", "🎮", "💊", "👕", "📚", "🎭", "💼", "⚽", "📱", "✈️"]
+    for emoji in emojis:
+        builder.button(text=emoji, callback_data=f"catemoji:{emoji}")
+    builder.adjust(6)
+    builder.row(InlineKeyboardButton(text="Пропустить", callback_data="catemoji_skip"))
+    builder.row(InlineKeyboardButton(text="Отмена", callback_data="cancel"))
+
+    await state.set_state(AddCategory.choosing_emoji)
+    await message.answer("Выберите смайлик для категории (опционально):", reply_markup=builder.as_markup())
+
+
+@router.callback_query(AddCategory.choosing_emoji, F.data.startswith("catemoji:"))
+async def on_category_emoji_chosen(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+) -> None:
+    emoji = callback.data.split(":")[1]
+    await state.update_data(cat_emoji=emoji)
+    await _save_category(callback, state, session)
+
+
+@router.callback_query(AddCategory.choosing_emoji, F.data == "catemoji_skip")
+async def on_category_emoji_skipped(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+) -> None:
+    await state.update_data(cat_emoji=None)
+    await _save_category(callback, state, session)
+
+
+async def _save_category(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
     data = await state.get_data()
     user_svc = UserService(session)
-    user = await user_svc.get_by_telegram_id(message.from_user.id)
+    user = await user_svc.get_by_telegram_id(callback.from_user.id)
     if not user:
-        await message.answer("Сначала введите /start")
+        await callback.message.edit_text("Сначала введите /start")
         await state.clear()
+        await callback.answer()
         return
 
     cat_svc = CategoryService(session)
-    category = await cat_svc.create(name=name, type_=data["cat_type"], user_id=user.id)
+    category = await cat_svc.create(
+        name=data["cat_name"],
+        type_=data["cat_type"],
+        user_id=user.id,
+        emoji=data.get("cat_emoji"),
+    )
 
     type_label = "расходов" if category.type == "expense" else "доходов"
-    await message.answer(f"✅ Категория «{category.name}» ({type_label}) добавлена!")
+    emoji = f"{category.emoji} " if category.emoji else ""
+    await callback.message.edit_text(f"✅ Категория «{emoji}{category.name}» ({type_label}) добавлена!")
     await state.clear()
+    await callback.answer()
 
 
 @router.callback_query(F.data == "cat_del")
@@ -149,6 +194,10 @@ async def on_category_delete_confirmed(
 @router.callback_query(
     F.data == "cancel",
     AddCategory.entering_name,
+)
+@router.callback_query(
+    F.data == "cancel",
+    AddCategory.choosing_emoji,
 )
 async def on_cancel_add_category(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()

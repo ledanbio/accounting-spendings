@@ -11,22 +11,58 @@ from src.bot.keyboards.inline import (
     categories_keyboard,
     currency_keyboard,
     skip_keyboard,
+    wallets_keyboard,
 )
 from src.bot.states.transaction import AddTransaction
 from src.services.user_service import UserService
 from src.services.category_service import CategoryService
 from src.services.transaction_service import TransactionService
+from src.services.wallet_service import WalletService
 
 router = Router()
 
 
 @router.message(Command("add"))
-async def cmd_add(message: Message, state: FSMContext) -> None:
-    await state.set_state(AddTransaction.choosing_type)
-    await message.answer(
+async def cmd_add(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    user_svc = UserService(session)
+    user = await user_svc.get_by_telegram_id(message.from_user.id)
+    if not user:
+        await message.answer("Сначала введите /start")
+        return
+
+    wallet_svc = WalletService(session)
+    wallets = await wallet_svc.get_wallets(user.id)
+
+    if not wallets:
+        await message.answer("У вас нет кошельков. Сначала создайте кошелек в настройках.")
+        return
+
+    if len(wallets) == 1:
+        await state.update_data(wallet_id=wallets[0].id)
+        await state.set_state(AddTransaction.choosing_type)
+        await message.answer(
+            "Выберите тип операции:",
+            reply_markup=transaction_type_keyboard(),
+        )
+    else:
+        await state.update_data(user_id=user.id, default_currency=user.default_currency)
+        await state.set_state(AddTransaction.choosing_wallet)
+        await message.answer(
+            "Выберите кошелек:",
+            reply_markup=wallets_keyboard(wallets),
+        )
+
+
+@router.callback_query(AddTransaction.choosing_wallet, F.data.startswith("wallet:"))
+async def on_wallet_chosen(callback: CallbackQuery, state: FSMContext) -> None:
+    wallet_id = int(callback.data.split(":")[1])
+    await state.update_data(wallet_id=wallet_id)
+    await callback.message.edit_text(
         "Выберите тип операции:",
         reply_markup=transaction_type_keyboard(),
     )
+    await state.set_state(AddTransaction.choosing_type)
+    await callback.answer()
 
 
 @router.callback_query(AddTransaction.choosing_type, F.data.startswith("txn_type:"))
@@ -44,7 +80,8 @@ async def on_type_chosen(
         await callback.answer()
         return
 
-    await state.update_data(user_id=user.id, default_currency=user.default_currency)
+    if "user_id" not in (await state.get_data()):
+        await state.update_data(user_id=user.id, default_currency=user.default_currency)
 
     cat_svc = CategoryService(session)
     categories = await cat_svc.get_categories(user.id, txn_type)
@@ -145,6 +182,10 @@ async def _save_transaction(
     await state.clear()
 
 
+@router.callback_query(
+    F.data == "cancel",
+    AddTransaction.choosing_wallet,
+)
 @router.callback_query(
     F.data == "cancel",
     AddTransaction.choosing_type,

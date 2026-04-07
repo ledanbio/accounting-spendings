@@ -21,6 +21,7 @@ class TransactionService:
         type_: str,
         description: str | None = None,
         transaction_date: datetime.date | None = None,
+        wallet_id: int | None = None,
     ) -> Transaction:
         txn = Transaction(
             user_id=user_id,
@@ -30,6 +31,7 @@ class TransactionService:
             type=type_,
             description=description,
             transaction_date=transaction_date or datetime.date.today(),
+            wallet_id=wallet_id,
         )
         self.session.add(txn)
         await self.session.commit()
@@ -50,8 +52,27 @@ class TransactionService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_history_by_wallet(
+        self, wallet_id: int, limit: int = 10, offset: int = 0
+    ) -> list[Transaction]:
+        stmt = (
+            select(Transaction)
+            .options(joinedload(Transaction.category))
+            .where(Transaction.wallet_id == wallet_id)
+            .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def count(self, user_id: int) -> int:
         stmt = select(func.count(Transaction.id)).where(Transaction.user_id == user_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
+
+    async def count_by_wallet(self, wallet_id: int) -> int:
+        stmt = select(func.count(Transaction.id)).where(Transaction.wallet_id == wallet_id)
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
@@ -78,3 +99,56 @@ class TransactionService:
                 balances[currency] -= total
 
         return balances
+
+    async def get_balance_by_wallet(self, wallet_id: int) -> Decimal:
+        """Get balance for a single wallet (income - expense)."""
+        stmt = (
+            select(
+                Transaction.type,
+                func.sum(Transaction.amount),
+            )
+            .where(Transaction.wallet_id == wallet_id)
+            .group_by(Transaction.type)
+        )
+        result = await self.session.execute(stmt)
+
+        balance = Decimal("0")
+        for type_, total in result.all():
+            if type_ == "income":
+                balance += total
+            else:
+                balance -= total
+
+        return balance
+
+    async def get_wallet_statistics(self, wallet_id: int) -> dict[str, Decimal]:
+        """Get income and expense totals for a wallet separately."""
+        stmt = (
+            select(
+                Transaction.type,
+                func.sum(Transaction.amount),
+            )
+            .where(Transaction.wallet_id == wallet_id)
+            .group_by(Transaction.type)
+        )
+        result = await self.session.execute(stmt)
+
+        stats = {"income": Decimal("0"), "expense": Decimal("0")}
+        for type_, total in result.all():
+            if total:
+                stats[type_] = total
+
+        return stats
+
+    async def get_total_balance(self, user_id: int) -> dict[str, Decimal]:
+        """Get total balance across all wallets for a user."""
+        stmt = (
+            select(
+                Transaction.wallet_id,
+                func.sum(Transaction.amount).label("total"),
+            )
+            .where(Transaction.user_id == user_id)
+            .group_by(Transaction.wallet_id)
+        )
+        result = await self.session.execute(stmt)
+        return {wallet_id: total for wallet_id, total in result.all()}
