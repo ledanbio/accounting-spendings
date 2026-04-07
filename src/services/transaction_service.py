@@ -1,11 +1,12 @@
 import datetime
 from decimal import Decimal
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.database.models.transaction import Transaction
+from src.database.models.wallet import Wallet
 
 
 class TransactionService:
@@ -34,6 +35,15 @@ class TransactionService:
             wallet_id=wallet_id,
         )
         self.session.add(txn)
+
+        if wallet_id is not None:
+            delta = amount if type_ == "income" else -amount
+            await self.session.execute(
+                update(Wallet)
+                .where(Wallet.id == wallet_id)
+                .values(balance=Wallet.balance + delta)
+            )
+
         await self.session.commit()
         await self.session.refresh(txn)
         return txn
@@ -43,7 +53,7 @@ class TransactionService:
     ) -> list[Transaction]:
         stmt = (
             select(Transaction)
-            .options(joinedload(Transaction.category))
+            .options(joinedload(Transaction.category), joinedload(Transaction.wallet))
             .where(Transaction.user_id == user_id)
             .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc())
             .limit(limit)
@@ -57,7 +67,7 @@ class TransactionService:
     ) -> list[Transaction]:
         stmt = (
             select(Transaction)
-            .options(joinedload(Transaction.category))
+            .options(joinedload(Transaction.category), joinedload(Transaction.wallet))
             .where(Transaction.wallet_id == wallet_id)
             .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc())
             .limit(limit)

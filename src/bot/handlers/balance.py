@@ -25,18 +25,17 @@ async def cmd_balance(message: Message, session: AsyncSession) -> None:
         await message.answer("У вас нет кошельков.")
         return
 
-    txn_svc = TransactionService(session)
-
     lines = ["<b>💼 Ваш баланс по кошелькам:</b>\n"]
 
     total_balance = 0
 
     for wallet in wallets:
-        balance = await txn_svc.get_balance_by_wallet(wallet.id)
-        total_balance += balance
+        total_balance += wallet.balance
         emoji = wallet.emoji or "💼"
-        sign = "+" if balance >= 0 else ""
-        lines.append(f"  {emoji} <b>{wallet.name}</b> ({wallet.currency}): {sign}{balance}")
+        sign = "+" if wallet.balance >= 0 else ""
+        lines.append(
+            f"  {emoji} <b>{wallet.name}</b> ({wallet.currency}): {sign}{wallet.balance}"
+        )
 
     lines.append("\n" + "─" * 30)
     sign = "+" if total_balance >= 0 else ""

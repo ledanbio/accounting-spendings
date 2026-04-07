@@ -167,6 +167,7 @@ async def _save_transaction(
         currency=data["currency"],
         type_=data["txn_type"],
         description=description,
+        wallet_id=data.get("wallet_id"),
     )
 
     category = await cat_svc.get_by_id(txn.category_id)

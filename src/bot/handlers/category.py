@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.keyboards.inline import (
@@ -11,7 +10,6 @@ from src.bot.keyboards.inline import (
     deletable_categories_keyboard,
 )
 from src.bot.states.transaction import AddCategory
-from src.database.models.category import Category
 from src.services.user_service import UserService
 from src.services.category_service import CategoryService
 
@@ -146,22 +144,19 @@ async def on_delete_category(callback: CallbackQuery, session: AsyncSession) -> 
         await callback.answer()
         return
 
-    stmt = (
-        select(Category)
-        .where(Category.user_id == user.id, Category.is_default.is_(False))
-        .order_by(Category.name)
-    )
-    result = await session.execute(stmt)
-    custom_cats = list(result.scalars().all())
+    cat_svc = CategoryService(session)
+    expense_cats = await cat_svc.get_categories(user.id, "expense")
+    income_cats = await cat_svc.get_categories(user.id, "income")
+    cats = sorted([*expense_cats, *income_cats], key=lambda c: (c.type, c.is_default, c.name))
 
-    if not custom_cats:
-        await callback.message.edit_text("У вас нет пользовательских категорий для удаления.")
+    if not cats:
+        await callback.message.edit_text("У вас нет категорий для удаления.")
         await callback.answer()
         return
 
     await callback.message.edit_text(
         "Выберите категорию для удаления:",
-        reply_markup=deletable_categories_keyboard(custom_cats),
+        reply_markup=deletable_categories_keyboard(cats),
     )
     await callback.answer()
 

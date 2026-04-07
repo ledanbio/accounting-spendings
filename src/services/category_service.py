@@ -1,7 +1,8 @@
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models.category import Category
+from src.database.models.deleted_category import DeletedCategory
 
 
 class CategoryService:
@@ -9,11 +10,17 @@ class CategoryService:
         self.session = session
 
     async def get_categories(self, user_id: int, type_: str) -> list[Category]:
+        deleted_default_exists = exists().where(
+            DeletedCategory.user_id == user_id,
+            DeletedCategory.category_id == Category.id,
+        )
         stmt = (
             select(Category)
             .where(
                 Category.type == type_,
                 or_(Category.is_default.is_(True), Category.user_id == user_id),
+                # Hide default categories deleted by this user
+                ~deleted_default_exists,
             )
             .order_by(Category.is_default.desc(), Category.name)
         )
@@ -28,17 +35,30 @@ class CategoryService:
         return category
 
     async def delete(self, category_id: int, user_id: int) -> bool:
-        stmt = select(Category).where(
-            Category.id == category_id,
-            Category.user_id == user_id,
-            Category.is_default.is_(False),
-        )
+        stmt = select(Category).where(Category.id == category_id)
         result = await self.session.execute(stmt)
         category = result.scalar_one_or_none()
         if category is None:
             return False
-        await self.session.delete(category)
-        await self.session.commit()
+
+        # User-owned category: delete physically
+        if category.is_default is False:
+            if category.user_id != user_id:
+                return False
+            await self.session.delete(category)
+            await self.session.commit()
+            return True
+
+        # Default category: mark as deleted for this user
+        stmt = select(DeletedCategory).where(
+            DeletedCategory.user_id == user_id,
+            DeletedCategory.category_id == category_id,
+        )
+        res = await self.session.execute(stmt)
+        existing = res.scalar_one_or_none()
+        if existing is None:
+            self.session.add(DeletedCategory(user_id=user_id, category_id=category_id))
+            await self.session.commit()
         return True
 
     async def get_by_id(self, category_id: int) -> Category | None:
