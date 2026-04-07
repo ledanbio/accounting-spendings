@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -231,13 +232,9 @@ async def on_set_currency(callback: CallbackQuery, session: AsyncSession) -> Non
 @router.callback_query(F.data == "onboard_wallet")
 async def on_onboard_wallet(callback: CallbackQuery, state: FSMContext) -> None:
     """Start wallet creation during onboarding."""
-    from src.bot.states.wallet import AddWallet
+    from src.bot.handlers.wallet import on_wallet_add
     
-    await state.set_state(AddWallet.entering_name)
-    await callback.message.edit_text(
-        "Введите название кошелька (например, 'Основная карта', 'Наличные'):"
-    )
-    await callback.answer()
+    await on_wallet_add(callback, state)
 
 
 @router.callback_query(F.data == "onboard_skip")
