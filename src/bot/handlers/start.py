@@ -59,6 +59,7 @@ async def cmd_help(message: Message) -> None:
         "/add — добавить доход или расход\n"
         "/balance — текущий баланс\n"
         "/history — история транзакций\n"
+        "/analytics — графики и рекомендации\n"
         "/categories — управление категориями\n"
         "/wallets — управление кошельками\n"
         "/settings — настройки\n"

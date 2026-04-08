@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.keyboards.reply import (
     BTN_ADD,
+    BTN_ANALYTICS,
     BTN_BALANCE,
     BTN_CATEGORIES,
     BTN_HELP,
@@ -18,6 +19,7 @@ from src.bot.handlers.balance import cmd_balance
 from src.bot.handlers.history import cmd_history
 from src.bot.handlers.category import cmd_categories
 from src.bot.handlers.transfer import cmd_transfer
+from src.bot.handlers.analytics import cmd_analytics
 
 router = Router()
 
@@ -55,3 +57,8 @@ async def on_btn_help(message: Message) -> None:
 @router.message(F.text == BTN_TRANSFER)
 async def on_btn_transfer(message: Message, state: FSMContext, session: AsyncSession) -> None:
     await cmd_transfer(message, state, session)
+
+
+@router.message(F.text == BTN_ANALYTICS)
+async def on_btn_analytics(message: Message, state: FSMContext, session: AsyncSession) -> None:
+    await cmd_analytics(message, state, session)

@@ -158,6 +158,79 @@ def confirm_transfer_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def analytics_mode_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Общая аналитика", callback_data="anl_mode:overview"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="По категориям", callback_data="anl_mode:categories"),
+    )
+    builder.row(InlineKeyboardButton(text="Отмена", callback_data="cancel"))
+    return builder.as_markup()
+
+
+def analytics_period_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Месяц", callback_data="anl_period:month"),
+        InlineKeyboardButton(text="3 месяца", callback_data="anl_period:3m"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="Весь период", callback_data="anl_period:all"),
+        InlineKeyboardButton(text="Выбранный период", callback_data="anl_period:custom"),
+    )
+    builder.row(InlineKeyboardButton(text="Отмена", callback_data="cancel"))
+    return builder.as_markup()
+
+
+def analytics_custom_period_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Ввести даты", callback_data="anl_custom:manual"))
+    builder.row(InlineKeyboardButton(text="Выбрать месяцы", callback_data="anl_custom:months"))
+    builder.row(InlineKeyboardButton(text="Назад", callback_data="anl_back:period"))
+    return builder.as_markup()
+
+
+def analytics_month_picker_keyboard(
+    months: list[str],
+    stage: str,
+    page: int = 0,
+    per_page: int = 12,
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    start = page * per_page
+    end = start + per_page
+    page_months = months[start:end]
+    for m in page_months:
+        builder.button(text=m, callback_data=f"anl_pick:{stage}:{m}")
+    builder.adjust(3)
+
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(text="⬅️", callback_data=f"anl_page:{stage}:{page - 1}")
+        )
+    if end < len(months):
+        nav_buttons.append(
+            InlineKeyboardButton(text="➡️", callback_data=f"anl_page:{stage}:{page + 1}")
+        )
+    if nav_buttons:
+        builder.row(*nav_buttons)
+    builder.row(InlineKeyboardButton(text="Назад", callback_data="anl_back:custom"))
+    return builder.as_markup()
+
+
+def analytics_category_type_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Категории расходов", callback_data="anl_cat:expense"),
+        InlineKeyboardButton(text="Категории доходов", callback_data="anl_cat:income"),
+    )
+    builder.row(InlineKeyboardButton(text="Назад", callback_data="anl_back:period"))
+    return builder.as_markup()
+
+
 def settings_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="💱 Изменить валюту", callback_data="settings_currency"))
