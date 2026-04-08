@@ -7,7 +7,6 @@ from src.bot.keyboards.reply import (
     BTN_ADD,
     BTN_ANALYTICS,
     BTN_BALANCE,
-    BTN_CATEGORIES,
     BTN_HELP,
     BTN_HISTORY,
     BTN_SETTINGS,
@@ -17,7 +16,6 @@ from src.bot.handlers.start import cmd_help, cmd_settings
 from src.bot.handlers.transaction import cmd_add
 from src.bot.handlers.balance import cmd_balance
 from src.bot.handlers.history import cmd_history
-from src.bot.handlers.category import cmd_categories
 from src.bot.handlers.transfer import cmd_transfer
 from src.bot.handlers.analytics import cmd_analytics
 
@@ -37,11 +35,6 @@ async def on_btn_balance(message: Message, session: AsyncSession) -> None:
 @router.message(F.text == BTN_HISTORY)
 async def on_btn_history(message: Message, session: AsyncSession) -> None:
     await cmd_history(message, session)
-
-
-@router.message(F.text == BTN_CATEGORIES)
-async def on_btn_categories(message: Message, session: AsyncSession) -> None:
-    await cmd_categories(message, session)
 
 
 @router.message(F.text == BTN_SETTINGS)

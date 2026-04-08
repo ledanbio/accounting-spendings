@@ -236,5 +236,6 @@ def settings_menu_keyboard() -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="💱 Изменить валюту", callback_data="settings_currency"))
     builder.row(InlineKeyboardButton(text="😊 Управление смайликами", callback_data="settings_emoji"))
     builder.row(InlineKeyboardButton(text="💼 Управление кошельками", callback_data="settings_wallets"))
+    builder.row(InlineKeyboardButton(text="🏷️ Категории", callback_data="settings_categories"))
     builder.row(InlineKeyboardButton(text="Назад", callback_data="cancel"))
     return builder.as_markup()

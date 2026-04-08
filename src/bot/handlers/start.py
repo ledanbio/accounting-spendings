@@ -176,6 +176,17 @@ async def on_settings_wallets(callback: CallbackQuery, session: AsyncSession) ->
     await callback.answer()
 
 
+@router.callback_query(F.data == "settings_categories")
+async def on_settings_categories(callback: CallbackQuery) -> None:
+    from src.bot.keyboards.inline import manage_categories_keyboard
+
+    await callback.message.edit_text(
+        "🏷️ <b>Категории</b>\n\nВыберите действие:",
+        reply_markup=manage_categories_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "wallet_list")
 async def on_wallet_list(callback: CallbackQuery, session: AsyncSession) -> None:
     from src.services.wallet_service import WalletService
